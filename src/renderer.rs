@@ -26,6 +26,8 @@ impl LastRenderCoord{
         Self { position: Vec3::new(x, y, z) }
     }
 }
+#[derive(Component)]
+struct RenderedTile;
 
 fn spawn_camera(
     mut commands: Commands,
@@ -33,8 +35,8 @@ fn spawn_camera(
     commands.spawn((
         CameraTag,
         Camera3d::default(),
-        Transform::from_xyz((map.total_x_from_zero/2) as f32, 100.0, (map.total_z_from_zero/2) as f32).looking_to(Vec3::NEG_Y, Vec3::Y),//center camera in map looking down
-        LastRenderCoord::new((map.total_x_from_zero/2) as f32, 100.0, (map.total_z_from_zero/2) as f32),
+        Transform::from_xyz((map.total_x_from_zero/2) as f32, 10.0, (map.total_z_from_zero/2) as f32).looking_to(Vec3::NEG_Y, Vec3::Y),//center camera in map looking down
+        LastRenderCoord::new((map.total_x_from_zero/2) as f32, 10.0, (map.total_z_from_zero/2) as f32),
     ));
 }
 
@@ -49,7 +51,11 @@ fn generate_base_render(
     tiles: Query<(&GameCoordinate, &TileInfo), With<TileTag>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut rendered_q: Query<Entity, With<RenderedTile>>,
 ){
+    for e in rendered_q.iter_mut() {
+        commands.entity(e).despawn();
+    }
     let mesh_handle = meshes.add(Cuboid::new(1.0, 1.0, 1.0));
     
     let cam_x = cam_pos.x as usize;
@@ -65,6 +71,7 @@ fn generate_base_render(
         if dx <= RENDER_AREA && dz <= RENDER_AREA {
             if *tile == TileInfo::Empty{
                 commands.spawn((
+                    RenderedTile,
                     Transform::from_translation(Vec3::new(coord.x as f32,coord.y as f32,coord.z as f32,)),
                     Mesh3d(mesh_handle.clone()),
                     MeshMaterial3d(materials.add(StandardMaterial {
@@ -80,6 +87,7 @@ fn generate_base_render(
             }
             if *tile == TileInfo::Occupied{
                 commands.spawn((
+                    RenderedTile,
                     Transform::from_translation(Vec3::new(coord.x as f32,coord.y as f32,coord.z as f32,)),
                     Mesh3d(mesh_handle.clone()),
                     MeshMaterial3d(materials.add(StandardMaterial {
@@ -137,6 +145,7 @@ fn update_render_area(
     tiles: Query<(&GameCoordinate, &TileInfo), With<TileTag>>,
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<StandardMaterial>>,
+    mut rendered_q: Query<Entity, With<RenderedTile>>,
 ){
     let Ok((cam, mut last)) = camera.single_mut() else { return };
     let cam_pos = cam.translation;
@@ -145,7 +154,7 @@ fn update_render_area(
     let dz = (cam_pos.z - last.position.z).abs();
 
     if dx > (RENDER_AREA as f32 / 2.0) || dz > (RENDER_AREA as f32 / 2.0){
-        generate_base_render(commands,map,cam.translation,tiles,meshes,materials);
+        generate_base_render(commands,map,cam.translation,tiles,meshes,materials,rendered_q);
         last.position = cam.translation;
     }
 }
@@ -157,6 +166,7 @@ fn generate_base_render_system(
     tiles: Query<(&GameCoordinate, &TileInfo), With<TileTag>>,
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<StandardMaterial>>,
+    mut rendered_q: Query<Entity, With<RenderedTile>>,
 ) {
     let Ok((cam,mut last)) = camera.single_mut() else { return };
     generate_base_render(
@@ -166,6 +176,7 @@ fn generate_base_render_system(
         tiles,
         meshes,
         materials,
+        rendered_q
     );
     last.position = cam.translation;
 }

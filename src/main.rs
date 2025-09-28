@@ -1,6 +1,5 @@
 use bevy::window::PresentMode;
 use bevy::prelude::*;
-use rand::Rng;
 use renderer::RendererPlugin;
 use crate::input_map::*;
 use crate::server::GameMapData;
